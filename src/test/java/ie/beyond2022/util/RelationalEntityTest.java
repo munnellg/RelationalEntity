@@ -1,25 +1,36 @@
-package ie.munnellg;
+package ie.beyond2022.util;
 
 import java.util.ArrayList;
+import java.lang.IllegalArgumentException;
 
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import org.junit.Test;
 
-/**
- * Unit test for simple App.
- */
-public class RelationalEntityTest 
+public class RelationalEntityTest extends RelationalEntity
 {
+    protected Integer invalidFieldSetTest;
+
+    @Test
+    public void testPrimitiveAssignment()
+    {
+        String testName = "John";
+
+        TestPersonEntity person = new TestPersonEntity(testName);
+
+        assertTrue("Primitive assignment failed", testName.equals(person.getName()));
+    }
+
     @Test
     public void testOneToOneMappings()
     {
-        Person person   = new Person("John");
-    	Subject subject = new Subject("Computer Science");
+        TestPersonEntity person   = new TestPersonEntity("John");
+        TestSubjectEntity subject = new TestSubjectEntity("Computer Science");
 
-    	person.setTeachesSubject(subject);
+        person.setTeachesSubject(subject);
 
-    	assertTrue(subject.equals(person.getTeachesSubject()));
+        assertTrue(subject.equals(person.getTeachesSubject()));
         assertTrue(person.equals(subject.getTeacher()));
 
         subject.setTeacher(null);
@@ -33,8 +44,8 @@ public class RelationalEntityTest
     {
         try
         {
-            Person  person  = new Person("John");
-            Subject subject = new Subject("Computer Science");
+            TestPersonEntity  person  = new TestPersonEntity("John");
+            TestSubjectEntity subject = new TestSubjectEntity("Computer Science");
 
             person.setTeachingAssistantFor(subject);
 
@@ -58,14 +69,14 @@ public class RelationalEntityTest
     @Test
     public void testOneToManyMappings()
     {
-        Person[] people = {
-            new Person("Jason"),
-            new Person("Aimee"),
-            new Person("Clare"),
-            new Person("James")
+        TestPersonEntity[] people = {
+            new TestPersonEntity("Jason"),
+            new TestPersonEntity("Aimee"),
+            new TestPersonEntity("Clare"),
+            new TestPersonEntity("James")
         };
 
-        Subject subject = new Subject("Computer Science");
+        TestSubjectEntity subject = new TestSubjectEntity("Computer Science");
 
         for (int i = 0; i < people.length; i++)
         {
@@ -94,15 +105,15 @@ public class RelationalEntityTest
     @Test
     public void testTransferOneToManyMappings()
     {
-        Person[] people = {
-            new Person("Jason"),
-            new Person("Aimee"),
-            new Person("Clare"),
-            new Person("James")
+        TestPersonEntity[] people = {
+            new TestPersonEntity("Jason"),
+            new TestPersonEntity("Aimee"),
+            new TestPersonEntity("Clare"),
+            new TestPersonEntity("James")
         };
 
-        Subject subject1 = new Subject("Computer Science");
-        Subject subject2 = new Subject("Engineering");
+        TestSubjectEntity subject1 = new TestSubjectEntity("Computer Science");
+        TestSubjectEntity subject2 = new TestSubjectEntity("Engineering");
 
         for (int i = 0; i < people.length; i++)
         {
@@ -131,10 +142,10 @@ public class RelationalEntityTest
     @Test
     public void testTransferManyToOneMappings()
     {
-        Person person = new Person("Jason");
+        TestPersonEntity person = new TestPersonEntity("Jason");
 
-        Subject subject1 = new Subject("Computer Science");
-        Subject subject2 = new Subject("Engineering");
+        TestSubjectEntity subject1 = new TestSubjectEntity("Computer Science");
+        TestSubjectEntity subject2 = new TestSubjectEntity("Engineering");
 
         person.setTeachingAssistantFor(subject1);
 
@@ -156,16 +167,16 @@ public class RelationalEntityTest
     @Test
     public void testManyToManyMappings()
     {
-        Person[] people = {
-            new Person("Jason"),
-            new Person("Aimee"),
-            new Person("Clare"),
-            new Person("James")
+        TestPersonEntity[] people = {
+            new TestPersonEntity("Jason"),
+            new TestPersonEntity("Aimee"),
+            new TestPersonEntity("Clare"),
+            new TestPersonEntity("James")
         };
 
-        Subject[] subjects = {
-            new Subject("Computer Science"),
-            new Subject("Engineering")
+        TestSubjectEntity[] subjects = {
+            new TestSubjectEntity("Computer Science"),
+            new TestSubjectEntity("Engineering")
         };
 
         for (int i = 0; i < people.length; i++)
@@ -204,15 +215,15 @@ public class RelationalEntityTest
     @Test
     public void testReplaceOneToManyMappings()
     {
-        ArrayList<Person> people1 = new ArrayList<Person>();
-        people1.add(new Person("Jason"));
-        people1.add(new Person("Aimee"));
+        ArrayList<TestPersonEntity> people1 = new ArrayList<TestPersonEntity>();
+        people1.add(new TestPersonEntity("Jason"));
+        people1.add(new TestPersonEntity("Aimee"));
 
-        ArrayList<Person> people2 = new ArrayList<Person>();
-        people2.add(new Person("Clare"));
-        people2.add(new Person("James"));
+        ArrayList<TestPersonEntity> people2 = new ArrayList<TestPersonEntity>();
+        people2.add(new TestPersonEntity("Clare"));
+        people2.add(new TestPersonEntity("James"));
 
-        Subject subject = new Subject("Computer Science");
+        TestSubjectEntity subject = new TestSubjectEntity("Computer Science");
 
         for (int i = 0; i < people1.size(); i++)
         {
@@ -237,17 +248,17 @@ public class RelationalEntityTest
     @Test
     public void testReplaceManyToManyMappings()
     {
-        ArrayList<Person> people1 = new ArrayList<Person>();
-        people1.add(new Person("Jason"));
-        people1.add(new Person("Aimee"));
+        ArrayList<TestPersonEntity> people1 = new ArrayList<TestPersonEntity>();
+        people1.add(new TestPersonEntity("Jason"));
+        people1.add(new TestPersonEntity("Aimee"));
 
-        ArrayList<Person> people2 = new ArrayList<Person>();
-        people2.add(new Person("Clare"));
-        people2.add(new Person("James"));
+        ArrayList<TestPersonEntity> people2 = new ArrayList<TestPersonEntity>();
+        people2.add(new TestPersonEntity("Clare"));
+        people2.add(new TestPersonEntity("James"));
 
-        ArrayList<Subject> subjects = new ArrayList<Subject>();
-        subjects.add(new Subject("Computer Science"));
-        subjects.add(new Subject("Engineering"));
+        ArrayList<TestSubjectEntity> subjects = new ArrayList<TestSubjectEntity>();
+        subjects.add(new TestSubjectEntity("Computer Science"));
+        subjects.add(new TestSubjectEntity("Engineering"));
 
         for (int i = 0; i < people1.size(); i++)
         {
@@ -273,6 +284,21 @@ public class RelationalEntityTest
             assertTrue(people2.get(i).getEnrolledInSubjects().contains(subjects.get(0)));
             assertTrue(!subjects.get(1).getStudents().contains(people2.get(i)));
             assertTrue(!people2.get(i).getEnrolledInSubjects().contains(subjects.get(1)));
+        }
+    }
+
+    @Test
+    public void testSetInvalidType()
+    {
+        try
+        {
+            this.setField("invalidFieldSetTest", "Invalid value");
+
+            fail();
+        }
+        catch (IllegalArgumentException ex)
+        {
+            /* ignore */
         }
     }
 }

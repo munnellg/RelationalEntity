@@ -1,4 +1,4 @@
-package ie.munnellg;
+package ie.beyond2022.util;
 
 import java.lang.annotation.Target;
 import java.lang.annotation.Retention;
@@ -10,6 +10,4 @@ import java.lang.annotation.RetentionPolicy;
 public @interface RelationalFieldSetterMeta
 {
 	public String inverseField();
-
-	// public String inverseSetter() default null;
 }

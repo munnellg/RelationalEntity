@@ -1,4 +1,4 @@
-package ie.munnellg;
+package ie.beyond2022.util;
 
 import java.util.List;
 import java.util.Iterator;
@@ -12,7 +12,7 @@ import java.lang.IllegalArgumentException;
 
 public abstract class RelationalEntity
 {
-	private void checkValidFieldType(Field field, RelationalEntity value) throws IllegalArgumentException
+	private <T> void checkValidFieldType(Field field, T value) throws IllegalArgumentException
 	{
 		// make sure the assignment being attempted is valid
 		if (value != null)
@@ -30,6 +30,38 @@ public abstract class RelationalEntity
 		}
 	}
 
+	private void makeAccessible(Field field)
+	{
+		if (!field.isAccessible())
+		{
+			field.setAccessible(true);	
+		}
+	}
+
+	private void unsetOrRemoveThisFromInverseField(Field field, RelationalEntity entity)
+	{
+		if (Collection.class.isAssignableFrom(field.getType()))
+		{
+			entity.removeFromField(field, this);
+		}
+		else
+		{
+			entity.unsetField(field, this);
+		}
+	}
+
+	private void setOrAddThisToInverseField(Field field, RelationalEntity entity)
+	{
+		if (Collection.class.isAssignableFrom(field.getType()))
+		{
+			entity.addToField(field, this);
+		}
+		else
+		{
+			entity.setField(field, this);
+		}
+	}
+
 	private void applyRelationalUpdate(Field field, RelationalEntity newValue, RelationalFieldSetterMeta meta) throws IllegalAccessException, NoSuchFieldException
 	{
 		RelationalEntity oldValue = (RelationalEntity) field.get(this);
@@ -42,33 +74,55 @@ public abstract class RelationalEntity
 			{		
 				Field inverseField = oldValue.getClass().getDeclaredField(meta.inverseField());
 
-				if (Collection.class.isAssignableFrom(inverseField.getType()))
-				{
-					oldValue.removeFromField(inverseField, this);
-				}
-				else
-				{
-					oldValue.unsetField(inverseField, this);
-				}
+				unsetOrRemoveThisFromInverseField(inverseField, oldValue);
 			}
 
 			if (newValue != null)
 			{
 				Field inverseField = newValue.getClass().getDeclaredField(meta.inverseField());
 
-				if (Collection.class.isAssignableFrom(inverseField.getType()))
+				setOrAddThisToInverseField(inverseField, newValue);
+			}
+		}
+	}
+
+	private void applyRelationalUpdate(Field field, Collection newCollection, RelationalFieldSetterMeta meta) throws IllegalAccessException, NoSuchFieldException
+	{
+		Collection oldCollection = (Collection) field.get(this);
+
+		if (!same(oldCollection, newCollection))
+		{
+			if (oldCollection != null)
+			{
+				for (Iterator<RelationalEntity> it = oldCollection.iterator(); it.hasNext(); )
 				{
-					newValue.addToField(inverseField, this);
+					RelationalEntity e = it.next();
+
+					Field inverseField = e.getClass().getDeclaredField(meta.inverseField());
+	                
+	                it.remove();
+
+	                unsetOrRemoveThisFromInverseField(inverseField, e);
 				}
-				else
+			}
+			
+			field.set(this, newCollection);
+
+			if (newCollection != null)
+			{
+				for (Iterator<RelationalEntity> it = newCollection.iterator(); it.hasNext(); )
 				{
-					newValue.setField(inverseField, this);
+					RelationalEntity e = it.next();
+
+					Field inverseField = e.getClass().getDeclaredField(meta.inverseField());
+
+					setOrAddThisToInverseField(inverseField, e);
 				}
 			}
 		}
 	}
 
-	protected void setField(String fieldName, RelationalEntity newValue)
+	protected <T> void setField(String fieldName, T newValue)
 	{
 		try
 		{
@@ -82,23 +136,33 @@ public abstract class RelationalEntity
 		}
 	}
 
-	protected void setField(Field field, RelationalEntity newValue)
+	protected <T> void setField(Field field, T newValue)
 	{
 		try
 		{
 			checkValidFieldType(field, newValue);
 
+			makeAccessible(field);
+
 			// search for a meta tag that tells us how to do the assignment
 			RelationalFieldSetterMeta meta = field.getAnnotation(RelationalFieldSetterMeta.class);
 
-			// No meta, just assign the field
 			if (meta == null)
 			{
+				// No meta, just assign the field
 				field.set(this, newValue);
+			}
+			else if (Collection.class.isAssignableFrom(field.getType()))
+			{
+				this.applyRelationalUpdate(field, (Collection) newValue, meta);
+			}
+			else if (RelationalEntity.class.isAssignableFrom(field.getType()))
+			{
+				this.applyRelationalUpdate(field, (RelationalEntity) newValue, meta);
 			}
 			else
 			{
-				applyRelationalUpdate(field, newValue, meta);
+				field.set(this, newValue);
 			}
 		}
 		catch (IllegalAccessException ex)
@@ -111,7 +175,7 @@ public abstract class RelationalEntity
 		}
 	}
 
-	protected void unsetField(String fieldName, RelationalEntity expectedCurrentValue)
+	protected <T> void unsetField(String fieldName, T expectedCurrentValue)
 	{
 		try
 		{
@@ -125,13 +189,15 @@ public abstract class RelationalEntity
 		}
 	}
 
-	protected void unsetField(Field field, RelationalEntity expectedCurrentValue)
+	protected <T> void unsetField(Field field, T expectedCurrentValue)
 	{
 		try
 		{
-			RelationalEntity currentValue = (RelationalEntity) field.get(this);
+			checkValidFieldType(field, expectedCurrentValue);
+
+			makeAccessible(field);
 			
-			if (this.same(currentValue, expectedCurrentValue))
+			if (this.same((T) field.get(this), expectedCurrentValue))
 			{
 				this.setField(field, null);
 			}
@@ -164,6 +230,8 @@ public abstract class RelationalEntity
 			{
 				throw new IllegalArgumentException("Field must be a Collection type");
 			}
+
+			makeAccessible(field);
 
 			Collection c = (Collection) field.get(this);
 
@@ -223,6 +291,8 @@ public abstract class RelationalEntity
 				throw new IllegalArgumentException("Field must be a Collection type");
 			}
 
+			makeAccessible(field);
+
 			Collection c = (Collection) field.get(this);
 
 			if (!c.contains(item) || item == null)
@@ -258,80 +328,7 @@ public abstract class RelationalEntity
 		}
 	}
 
-	protected void setListField(String fieldName, Collection collection)
-	{
-		try
-		{
-			Field field = this.getClass().getDeclaredField(fieldName);
-
-			this.setListField(field, collection);
-		}
-		catch (NoSuchFieldException ex)
-		{
-			ex.printStackTrace();
-		}
-	}
-
-	protected void setListField(Field field, Collection newCollection)
-	{
-		try
-		{
-			if (!Collection.class.isAssignableFrom(field.getType()))
-			{
-				throw new IllegalArgumentException("Field must be a Collection type");
-			}
-
-			Collection oldCollection = (Collection) field.get(this);
-
-			RelationalFieldSetterMeta meta = field.getAnnotation(RelationalFieldSetterMeta.class);
-
-			for (Iterator<RelationalEntity> it = oldCollection.iterator(); it.hasNext(); )
-			{
-				RelationalEntity e = it.next();
-
-				Field inverseField = e.getClass().getDeclaredField(meta.inverseField());
-                
-                it.remove();
-
-                if (Collection.class.isAssignableFrom(inverseField.getType()))
-				{
-					e.removeFromField(inverseField, this);
-				}
-				else
-				{
-					e.unsetField(inverseField, this);
-				}
-			}
-
-			field.set(this, newCollection);
-
-			for (Iterator<RelationalEntity> it = newCollection.iterator(); it.hasNext(); )
-			{
-				RelationalEntity e = it.next();
-
-				Field inverseField = e.getClass().getDeclaredField(meta.inverseField());
-
-				if (Collection.class.isAssignableFrom(inverseField.getType()))
-				{
-					e.addToField(inverseField, this);
-				}
-				else
-				{
-					e.setField(inverseField, this);
-				}
-			}
-		}
-		catch (IllegalAccessException ex)
-		{
-			ex.printStackTrace();
-		}
-		catch (NoSuchFieldException ex)
-		{
-			ex.printStackTrace();
-		}
-	}
-
-	protected boolean same(RelationalEntity a, RelationalEntity b)
+	protected <T> boolean same(T a, T b)
 	{
 		if (a == null)
 		{
